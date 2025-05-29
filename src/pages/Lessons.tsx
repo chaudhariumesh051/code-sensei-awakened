@@ -1,10 +1,7 @@
-
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, Code, ArrowDown, CheckCircle, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const Lessons = () => {
   const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
@@ -326,18 +323,10 @@ getUser();`,
                       <Code className="h-5 w-5 text-cyan-400 mr-2" />
                       Code Example
                     </h3>
-                    <div className="rounded-lg overflow-hidden">
-                      <SyntaxHighlighter
-                        language="javascript"
-                        style={atomDark}
-                        customStyle={{
-                          padding: '1.5rem',
-                          fontSize: '14px',
-                          lineHeight: '1.5'
-                        }}
-                      >
-                        {lessons[selectedLesson].content.codeExample}
-                      </SyntaxHighlighter>
+                    <div className="bg-gray-900 rounded-lg p-6 overflow-x-auto">
+                      <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
+                        <code>{lessons[selectedLesson].content.codeExample}</code>
+                      </pre>
                     </div>
                   </motion.div>
 
