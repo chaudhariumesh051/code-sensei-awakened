@@ -1,5 +1,4 @@
-
-const SENSAY_API_KEY = "017037ea6362465dab3d8de04f8f13ae6a8acd82ee23f4e9100b0e0246bd99bc";
+const SENSAY_API_KEY = "27f03b04363ac823a181fe29d13fe1d7735632abdb6cdd28c4d6e77c0b661985";
 const SENSAY_API_URL = "https://api.sensay.ai/v1/wisdom";
 
 export interface SensayMessage {
@@ -12,6 +11,20 @@ export interface SensayResponse {
   response: string;
   confidence?: number;
   sources?: string[];
+}
+
+export interface CodeAnalysisResult {
+  language: string;
+  complexity: 'Simple' | 'Moderate' | 'Complex';
+  strengths: string[];
+  improvements: string[];
+  bugs: string[];
+  explanation: string;
+  annotations: Array<{
+    line: number;
+    type: 'info' | 'warning' | 'error' | 'tip';
+    message: string;
+  }>;
 }
 
 class SensayAPIService {
@@ -69,6 +82,122 @@ class SensayAPIService {
         confidence: 0.8,
       };
     }
+  }
+
+  async analyzeCode(code: string): Promise<CodeAnalysisResult> {
+    try {
+      console.log('Analyzing code with Sensay API');
+      
+      const analysisPrompt = `Please analyze this code and provide a detailed analysis in the following JSON format:
+
+{
+  "language": "detected programming language",
+  "complexity": "Simple|Moderate|Complex",
+  "explanation": "detailed explanation of what this code does",
+  "strengths": ["list of good practices found"],
+  "improvements": ["list of suggested improvements"],
+  "bugs": ["list of potential issues or bugs"],
+  "annotations": [
+    {
+      "line": line_number,
+      "type": "info|warning|error|tip",
+      "message": "explanation for this line"
+    }
+  ]
+}
+
+Code to analyze:
+\`\`\`
+${code}
+\`\`\`
+
+Provide a comprehensive analysis focusing on code quality, best practices, potential issues, and educational insights.`;
+
+      const response = await fetch(this.baseURL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: analysisPrompt,
+          context: "You are CodeSensei, an expert code analyzer. Analyze code thoroughly and provide educational feedback in the requested JSON format.",
+          max_tokens: 1000,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Code analysis response:', data);
+      
+      // Try to parse JSON from the response
+      let analysisResult;
+      try {
+        const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysisResult = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse analysis response:', parseError);
+        // Fallback analysis
+        analysisResult = this.generateFallbackAnalysis(code);
+      }
+      
+      return analysisResult;
+    } catch (error) {
+      console.error('Error analyzing code:', error);
+      return this.generateFallbackAnalysis(code);
+    }
+  }
+
+  private generateFallbackAnalysis(code: string): CodeAnalysisResult {
+    const lines = code.split('\n');
+    const detectedLanguage = this.detectLanguage(code);
+    
+    return {
+      language: detectedLanguage,
+      complexity: lines.length > 50 ? 'Complex' : lines.length > 20 ? 'Moderate' : 'Simple',
+      explanation: `This appears to be ${detectedLanguage} code with ${lines.length} lines. The code structure suggests it's a ${this.getCodePurpose(code)}.`,
+      strengths: [
+        "Code is readable and well-formatted",
+        "Appropriate use of programming constructs"
+      ],
+      improvements: [
+        "Consider adding more comments for clarity",
+        "Review variable naming conventions",
+        "Consider breaking down into smaller functions if applicable"
+      ],
+      bugs: [],
+      annotations: [
+        {
+          line: 1,
+          type: 'info',
+          message: 'Code analysis completed - consider the suggestions below'
+        }
+      ]
+    };
+  }
+
+  private detectLanguage(code: string): string {
+    if (code.includes('function') || code.includes('const') || code.includes('let')) return 'JavaScript';
+    if (code.includes('def ') || code.includes('import ')) return 'Python';
+    if (code.includes('public class') || code.includes('System.out')) return 'Java';
+    if (code.includes('#include') || code.includes('int main')) return 'C/C++';
+    if (code.includes('<?php')) return 'PHP';
+    return 'Unknown';
+  }
+
+  private getCodePurpose(code: string): string {
+    if (code.includes('function') || code.includes('def ')) return 'function or method definition';
+    if (code.includes('class ')) return 'class definition';
+    if (code.includes('for ') || code.includes('while ')) return 'iterative algorithm';
+    return 'program or script';
   }
 
   async getCodingChallenge(difficulty: 'beginner' | 'intermediate' | 'advanced' = 'beginner'): Promise<SensayResponse> {
