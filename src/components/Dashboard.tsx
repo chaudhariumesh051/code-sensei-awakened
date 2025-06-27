@@ -1,190 +1,187 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Code, Users, BarChart3, TrendingUp } from 'lucide-react';
-import { useAuth } from './AuthProvider';
+import { Brain, Code, TrendingUp, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+
+interface UserStats {
+  totalAnalyses: number;
+  totalProblems: number;
+  recentActivity: Array<{
+    id: string;
+    type: 'analysis' | 'problem';
+    title: string;
+    created_at: string;
+  }>;
+}
 
 export const Dashboard: React.FC = () => {
   const { user, profile } = useAuth();
-  const [recentAnalyses, setRecentAnalyses] = useState<any[]>([]);
-  const [recentSolutions, setRecentSolutions] = useState<any[]>([]);
+  const [stats, setStats] = useState<UserStats>({
+    totalAnalyses: 0,
+    totalProblems: 0,
+    recentActivity: []
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchUserData();
+      fetchUserStats();
     }
   }, [user]);
 
-  const fetchUserData = async () => {
+  const fetchUserStats = async () => {
     try {
-      setLoading(true);
-      
-      // Fetch recent code analyses
+      if (!user) return;
+
+      // Fetch analyses count
+      const { count: analysesCount } = await supabase
+        .from('code_analyses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // Fetch problems count
+      const { count: problemsCount } = await supabase
+        .from('problem_solutions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // Fetch recent activity
       const { data: analyses } = await supabase
         .from('code_analyses')
-        .select('*')
-        .eq('user_id', user!.id)
+        .select('id, title, created_at')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
-      // Fetch recent problem solutions
-      const { data: solutions } = await supabase
+      const { data: problems } = await supabase
         .from('problem_solutions')
-        .select('*')
-        .eq('user_id', user!.id)
+        .select('id, problem_title, created_at')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
-      setRecentAnalyses(analyses || []);
-      setRecentSolutions(solutions || []);
+      const recentActivity = [
+        ...(analyses?.map(a => ({ ...a, type: 'analysis' as const, title: a.title })) || []),
+        ...(problems?.map(p => ({ ...p, type: 'problem' as const, title: p.problem_title })) || [])
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+
+      setStats({
+        totalAnalyses: analysesCount || 0,
+        totalProblems: problemsCount || 0,
+        recentActivity
+      });
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const stats = [
-    { 
-      label: 'Total Analyses', 
-      value: profile?.total_analyses || 0, 
-      icon: Code, 
-      color: 'text-blue-600',
-      bg: 'bg-blue-100'
-    },
-    { 
-      label: 'Problems Solved', 
-      value: profile?.total_problems_solved || 0, 
-      icon: TrendingUp, 
-      color: 'text-green-600',
-      bg: 'bg-green-100'
-    },
-    { 
-      label: 'Recent Activity', 
-      value: recentAnalyses.length + recentSolutions.length, 
-      icon: BarChart3, 
-      color: 'text-purple-600',
-      bg: 'bg-purple-100'
-    },
-    { 
-      label: 'Account Type', 
-      value: profile?.is_admin ? 'Admin' : 'User', 
-      icon: Users, 
-      color: 'text-orange-600',
-      bg: 'bg-orange-100'
-    },
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      {/* Welcome Section */}
+    <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-          Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}! 👋
+          Welcome to AI Tutor
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Ready to continue your coding journey? Let's analyze some code and solve problems together.
+          Your intelligent programming companion
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div
-              key={index}
-              whileHover={{ scale: 1.05 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-                </div>
-                <div className={`w-12 h-12 ${stat.bg} dark:bg-gray-700 rounded-xl flex items-center justify-center`}>
-                  <Icon className={`w-6 h-6 ${stat.color} dark:text-gray-300`} />
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        >
+          <Brain className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            AI Analysis
+          </h3>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {loading ? '...' : stats.totalAnalyses}
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Code analyses completed
+          </p>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        >
+          <Code className="w-12 h-12 text-green-600 dark:text-green-400 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Problems Solved
+          </h3>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {loading ? '...' : stats.totalProblems}
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Coding problems solved
+          </p>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        >
+          <TrendingUp className="w-12 h-12 text-purple-600 dark:text-purple-400 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Progress
+          </h3>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {loading ? '...' : Math.round((stats.totalAnalyses + stats.totalProblems) / 2)}%
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Overall improvement
+          </p>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        >
+          <User className="w-12 h-12 text-orange-600 dark:text-orange-400 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Profile
+          </h3>
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {profile?.full_name || 'User'}
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            {profile?.is_admin ? 'Admin' : 'Member'}
+          </p>
+        </motion.div>
+      </div>
+
+      {stats.recentActivity.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Recent Activity
+          </h3>
+          <div className="space-y-3">
+            {stats.recentActivity.map((activity) => (
+              <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                {activity.type === 'analysis' ? (
+                  <Code className="w-5 h-5 text-blue-500" />
+                ) : (
+                  <Brain className="w-5 h-5 text-purple-500" />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {activity.title}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(activity.created_at).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Code Analyses */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
-        >
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Code Analyses</h3>
-          {recentAnalyses.length > 0 ? (
-            <div className="space-y-3">
-              {recentAnalyses.map((analysis, index) => (
-                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{analysis.title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{analysis.language}</p>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      {new Date(analysis.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 dark:text-gray-400">No code analyses yet. Start analyzing code to see your history here!</p>
-          )}
-        </motion.div>
-
-        {/* Recent Problem Solutions */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
-        >
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Problem Solutions</h3>
-          {recentSolutions.length > 0 ? (
-            <div className="space-y-3">
-              {recentSolutions.map((solution, index) => (
-                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{solution.problem_title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{solution.language}</p>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      {new Date(solution.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 dark:text-gray-400">No problems solved yet. Start solving problems to see your progress here!</p>
-          )}
-        </motion.div>
-      </div>
-    </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

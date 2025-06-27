@@ -2,16 +2,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LogOut, User, Settings } from 'lucide-react';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export const Navbar: React.FC = () => {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);

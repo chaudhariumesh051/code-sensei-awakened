@@ -1,138 +1,171 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, AlertTriangle, CheckCircle, Clock, BarChart3 } from 'lucide-react';
-import { GeminiService } from '../services/gemini';
+import { Code, Upload, Download } from 'lucide-react';
+import { analyzeCode } from '../services/gemini';
 import { showToast } from './Toast';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface AnalysisResult {
   code: string;
-  explanation: string;
   suggestions: string[];
   metrics: {
     complexity: number;
-    readability: number;
+    maintainability: number;
     performance: number;
   };
 }
 
-interface CodeAnalyzerProps {
-  code: string;
-  onAnalysisComplete: (result: AnalysisResult) => void;
-}
-
 export const CodeAnalyzer: React.FC = () => {
   const [code, setCode] = useState('');
+  const [language, setLanguage] = useState('javascript');
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setCode(e.target.value);
-  };
-
-  const handleAnalyzeCode = async () => {
+  const handleAnalyze = async () => {
     if (!code.trim()) {
       showToast.error('Please enter code to analyze');
       return;
     }
 
-    setIsAnalyzing(true);
     try {
-      const result = await GeminiService.analyzeCode(code);
+      setLoading(true);
+      const result = await analyzeCode(code, language);
       setAnalysis(result);
-      showToast.success('Code analysis complete! 🎉');
+      
+      // Save to database
+      if (user) {
+        const { error } = await supabase
+          .from('code_analyses')
+          .insert({
+            user_id: user.id,
+            title: `Code Analysis - ${new Date().toLocaleDateString()}`,
+            code_content: code,
+            language: language,
+            analysis_result: result
+          });
+
+        if (error) throw error;
+
+        // Update user stats
+        await supabase.rpc('increment_user_stats', {
+          user_id_param: user.id,
+          stat_type: 'analysis'
+        });
+      }
+      
+      showToast.success('Code analyzed successfully!');
     } catch (error) {
-      console.error('Error analyzing code:', error);
-      showToast.error('Failed to analyze code. Please try again.');
+      console.error('Analysis error:', error);
+      showToast.error('Failed to analyze code');
     } finally {
-      setIsAnalyzing(false);
+      setLoading(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
-    >
-      {/* Header */}
+    <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Code Analyzer
-        </h2>
+        </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Get insights and suggestions for your code
+          Get AI-powered insights about your code
         </p>
       </div>
 
-      {/* Code Input Section */}
-      <div className="bg-white dark:bg-dark-800 rounded-2xl border border-gray-200 dark:border-dark-700 p-6 shadow-lg">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Enter Code to Analyze
-        </label>
-        <textarea
-          value={code}
-          onChange={handleCodeChange}
-          placeholder="Paste your code here..."
-          className="w-full h-48 px-4 py-3 bg-gray-50 dark:bg-dark-700 border border-gray-200 dark:border-dark-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
-        />
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Programming Language
+            </label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="javascript">JavaScript</option>
+              <option value="python">Python</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="csharp">C#</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Code
+            </label>
+            <textarea
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Paste your code here..."
+              className="w-full h-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+            />
+          </div>
+
+          <button
+            onClick={handleAnalyze}
+            disabled={loading}
+            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+          >
+            <Code className="w-5 h-5" />
+            <span>{loading ? 'Analyzing...' : 'Analyze Code'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Analyze Button */}
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={handleAnalyzeCode}
-        disabled={isAnalyzing || !code.trim()}
-        className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
-      >
-        {isAnalyzing ? (
-          <>
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            >
-              <BarChart3 className="w-5 h-5" />
-            </motion.div>
-            <span>Analyzing Code...</span>
-          </>
-        ) : (
-          <>
-            <BarChart3 className="w-5 h-5" />
-            <span>Analyze Code</span>
-          </>
-        )}
-      </motion.button>
-
-      {/* Analysis Result */}
       {analysis && (
-        <div className="bg-white dark:bg-dark-800 rounded-2xl border border-gray-200 dark:border-dark-700 p-6 shadow-lg">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Analysis Result
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg"
+        >
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            Analysis Results
           </h3>
-
-          {/* Code Explanation */}
-          <div className="mb-4">
-            <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Explanation
-            </h4>
-            <p className="text-gray-600 dark:text-gray-400">
-              {analysis.explanation}
-            </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-800 dark:text-blue-200">Complexity</h4>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {analysis.metrics.complexity}/10
+              </p>
+            </div>
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+              <h4 className="font-medium text-green-800 dark:text-green-200">Maintainability</h4>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {analysis.metrics.maintainability}/10
+              </p>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+              <h4 className="font-medium text-purple-800 dark:text-purple-200">Performance</h4>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {analysis.metrics.performance}/10
+              </p>
+            </div>
           </div>
 
-          {/* Suggestions */}
-          <div>
-            <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Suggestions
-            </h4>
-            <ul className="list-disc list-inside text-gray-600 dark:text-gray-400">
-              {analysis.suggestions.map((suggestion, index) => (
-                <li key={index}>{suggestion}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
+          {analysis.suggestions.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                Suggestions for Improvement
+              </h4>
+              <ul className="space-y-2">
+                {analysis.suggestions.map((suggestion, index) => (
+                  <li key={index} className="flex items-start space-x-2">
+                    <span className="text-blue-500 mt-1">•</span>
+                    <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 };

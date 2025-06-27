@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../components/AuthProvider';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { showToast } from '../components/Toast';
 import { motion } from 'framer-motion';
@@ -30,22 +30,25 @@ export const AuthPage: React.FC = () => {
 
     try {
       if (mode === 'signin') {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        if (data.user) {
-          showToast.success('Signed in successfully!');
-          navigate('/dashboard');
-        }
-      } else if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: fullName } }
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
         });
         if (error) throw error;
-        if (data.user) {
-          showToast.success('Account created! Please check your email to verify your account.');
-        }
+        showToast.success('Signed in successfully!');
+        navigate('/dashboard');
+      } else if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { 
+            data: { 
+              full_name: fullName 
+            }
+          }
+        });
+        if (error) throw error;
+        showToast.success('Account created! Please check your email to verify your account.');
       } else if (mode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset-password`
@@ -188,7 +191,7 @@ export const AuthPage: React.FC = () => {
             {mode === 'signin' && (
               <>
                 <button
-                  className="text-blue-400 hover:text-blue-300 font-medium text-sm"
+                  className="text-blue-400 hover:text-blue-300 font-medium text-sm block w-full"
                   onClick={() => setMode('forgot')}
                 >
                   Forgot your password?

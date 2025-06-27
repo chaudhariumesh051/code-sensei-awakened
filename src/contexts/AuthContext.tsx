@@ -4,7 +4,10 @@ import { supabase, type AuthUser } from '../lib/supabase';
 
 interface AuthContextType {
   user: AuthUser | null;
+  profile: any;
   loading: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +22,7 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +33,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await loadUserProfile(session.user);
         }
       } catch (error) {
+        console.error('Session error:', error);
         setUser(null);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -42,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadUserProfile(session.user);
       } else {
         setUser(null);
+        setProfile(null);
       }
       setLoading(false);
     });
@@ -51,29 +58,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (authUser: any) => {
     try {
-      const { data: profile, error } = await supabase
+      const { data: profileData, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', authUser.id)
         .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
 
       setUser({
         id: authUser.id,
         email: authUser.email,
-        profile: profile || undefined,
+        profile: profileData || undefined,
       });
+      
+      setProfile(profileData);
     } catch (error) {
+      console.error('Profile error:', error);
       setUser({
         id: authUser.id,
         email: authUser.email,
       });
+      setProfile(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile,
+      loading, 
+      isAuthenticated: !!user,
+      isLoading: loading 
+    }}>
       {children}
     </AuthContext.Provider>
   );
