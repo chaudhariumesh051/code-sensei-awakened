@@ -11,15 +11,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.2.1",
     "@supabase/supabase-js": "^2.38.4",
+    "axios": "^1.6.2",
+    "framer-motion": "^10.16.16",
+    "lovable-tagger": "^1.1.8",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "framer-motion": "^10.16.16",
-    "react-router-dom": "^6.20.1",
-    "@google/generative-ai": "^0.2.1",
-    "axios": "^1.6.2",
     "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.20.1",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
