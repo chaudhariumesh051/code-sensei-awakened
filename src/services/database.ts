@@ -1,8 +1,4 @@
 import { supabase } from '../lib/supabase'
-import type { Database } from '../lib/supabase'
-
-type CodeSubmission = Database['public']['Tables']['code_submissions']['Row']
-type CodeAnalysis = Database['public']['Tables']['code_analyses']['Row']
 
 export interface CodeSubmissionData {
   title?: string
@@ -320,7 +316,7 @@ export class DatabaseService {
   /**
    * Update submission
    */
-  static async updateSubmission(submissionId: string, updates: Partial<CodeSubmission>) {
+  static async updateSubmission(submissionId: string, updates: Partial<any>) {
     try {
       const { error } = await supabase
         .from('code_submissions')

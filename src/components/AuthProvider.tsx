@@ -1,8 +1,6 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { AuthUser, Profile } from '../lib/supabase';
-import { showToast } from './Toast';
 
 interface AuthContextType {
   user: AuthUser | null;
