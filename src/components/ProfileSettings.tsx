@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
-  Mail, 
   Lock, 
   Save,
   LogOut,
@@ -29,7 +28,7 @@ const AVATAR_OPTIONS = [
 ];
 
 export const ProfileSettings: React.FC = () => {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     avatar_url: profile?.avatar_url || '👤'
@@ -87,7 +86,7 @@ export const ProfileSettings: React.FC = () => {
 
       if (error) throw error;
 
-      await updateProfile();
+      await refreshUser();
       showToast.success('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -129,17 +128,6 @@ export const ProfileSettings: React.FC = () => {
       showToast.error('Failed to update password');
     } finally {
       setPasswordLoading(false);
-    }
-  };
-
-  const handleRevokeSession = async (sessionId: string) => {
-    try {
-      await AuthService.revokeSession(sessionId);
-      setSessions(sessions.filter(s => s.id !== sessionId));
-      showToast.success('Session revoked successfully');
-    } catch (error) {
-      console.error('Error revoking session:', error);
-      showToast.error('Failed to revoke session');
     }
   };
 
