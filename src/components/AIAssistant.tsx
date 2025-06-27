@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Sparkles, MessageCircle, Code, Lightbulb, HelpCircle, Bot, Copy, Check, ArrowLeft } from 'lucide-react';
+import { Send, Bot, Copy, Check, ArrowLeft } from 'lucide-react';
 import { GeminiService } from '../services/gemini';
 
 // ============================================================================
@@ -31,7 +32,7 @@ const parseMessageContent = (content: string) => {
   // Split by code blocks (```language or ```)
   const parts = content.split(/(```[\s\S]*?```)/g);
   
-  parts.forEach((part, index) => {
+  parts.forEach((part) => {
     if (part.startsWith('```') && part.endsWith('```')) {
       // This is a code block
       const lines = part.split('\n');
@@ -217,8 +218,8 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose }) => {
     setIsLoading(true); // Show loading state
 
     try {
-      // Call Gemini AI service with conversation history
-      const response = await GeminiService.chatWithAssistant(newMessages);
+      // Call Gemini AI service with the user's message
+      const response = await GeminiService.chatWithAssistant(message);
       
       // Create assistant response message
       const assistantMessage: ChatMessage = {

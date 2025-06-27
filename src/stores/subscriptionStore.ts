@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -5,246 +6,127 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
-  billingCycle: 'monthly' | 'yearly' | 'semester';
   features: string[];
   popular?: boolean;
-  savings?: string;
 }
 
-export interface UserSubscription {
-  plan: SubscriptionPlan | null;
-  isActive: boolean;
-  expiresAt: Date | null;
-  dailyUsage: {
-    codeAnalysis: number;
-    videoGeneration: number;
-    problemSolving: number;
-  };
-  totalUsage: {
-    videosGenerated: number;
-    problemsSolved: number;
-    analysisCount: number;
-  };
-}
-
-interface SubscriptionState {
-  subscription: UserSubscription;
-  plans: SubscriptionPlan[];
-  updateUsage: (type: 'codeAnalysis' | 'videoGeneration' | 'problemSolving') => void;
-  resetDailyUsage: () => void;
-  subscribeToPlan: (plan: SubscriptionPlan) => void;
+export interface SubscriptionState {
+  currentPlan: SubscriptionPlan | null;
+  isSubscribed: boolean;
+  subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'expired';
+  expiryDate: Date | null;
+  
+  // Actions
+  setCurrentPlan: (plan: SubscriptionPlan) => void;
+  setSubscriptionStatus: (status: 'active' | 'inactive' | 'cancelled' | 'expired') => void;
+  setExpiryDate: (date: Date | null) => void;
   cancelSubscription: () => void;
-  canUseFeature: (feature: string) => boolean;
-  getRemainingUsage: (type: 'codeAnalysis' | 'videoGeneration' | 'problemSolving') => number;
+  renewSubscription: () => void;
 }
-
-const FREE_LIMITS = {
-  codeAnalysis: 3,
-  videoGeneration: 0,
-  problemSolving: 3,
-};
-
-const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  {
-    id: 'pro-monthly',
-    name: 'Pro Monthly',
-    price: 9.99,
-    billingCycle: 'monthly',
-    features: [
-      'Unlimited code analysis',
-      'AI video explanations with Tavus',
-      'Voice narration with ElevenLabs',
-      'Mermaid/D2 flowchart generation',
-      'Downloadable MP4 explanations',
-      'Multiple AI presenters',
-      '10x faster AI processing',
-      'Premium challenges & roadmaps',
-      'Export flowcharts (SVG, PNG, PDF)',
-      'Multi-language narration',
-      'Pro badge & leaderboard boost',
-      'Priority support'
-    ]
-  },
-  {
-    id: 'pro-yearly',
-    name: 'Pro Yearly',
-    price: 99.00,
-    billingCycle: 'yearly',
-    savings: 'Save 17%',
-    popular: true,
-    features: [
-      'Everything in Pro Monthly',
-      'Custom AI avatar creation',
-      'Advanced analytics dashboard',
-      'Team collaboration features',
-      'API access for integrations',
-      'White-label solutions',
-      'Dedicated account manager'
-    ]
-  },
-  {
-    id: 'student',
-    name: 'Student Plan',
-    price: 29.00,
-    billingCycle: 'semester',
-    features: [
-      'All Pro features for 6 months',
-      'Student verification required',
-      'Educational institution discount',
-      'Study group collaboration',
-      'Academic project templates',
-      'Career guidance resources'
-    ]
-  }
-];
 
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
     (set, get) => ({
-      subscription: {
-        plan: null,
-        isActive: false,
-        expiresAt: null,
-        dailyUsage: {
-          codeAnalysis: 0,
-          videoGeneration: 0,
-          problemSolving: 0,
-        },
-        totalUsage: {
-          videosGenerated: 0,
-          problemsSolved: 0,
-          analysisCount: 0,
-        },
-      },
-      plans: SUBSCRIPTION_PLANS,
+      currentPlan: null,
+      isSubscribed: false,
+      subscriptionStatus: 'inactive',
+      expiryDate: null,
 
-      updateUsage: (type) => {
-        set((state) => ({
-          subscription: {
-            ...state.subscription,
-            dailyUsage: {
-              ...state.subscription.dailyUsage,
-              [type]: state.subscription.dailyUsage[type] + 1,
-            },
-            totalUsage: {
-              ...state.subscription.totalUsage,
-              [type === 'codeAnalysis' ? 'analysisCount' : 
-               type === 'videoGeneration' ? 'videosGenerated' : 'problemsSolved']: 
-               state.subscription.totalUsage[
-                 type === 'codeAnalysis' ? 'analysisCount' : 
-                 type === 'videoGeneration' ? 'videosGenerated' : 'problemsSolved'
-               ] + 1,
-            },
-          },
-        }));
-      },
+      setCurrentPlan: (plan) => set({ 
+        currentPlan: plan,
+        isSubscribed: true,
+        subscriptionStatus: 'active'
+      }),
 
-      resetDailyUsage: () => {
-        set((state) => ({
-          subscription: {
-            ...state.subscription,
-            dailyUsage: {
-              codeAnalysis: 0,
-              videoGeneration: 0,
-              problemSolving: 0,
-            },
-          },
-        }));
-      },
+      setSubscriptionStatus: (status) => set({ 
+        subscriptionStatus: status,
+        isSubscribed: status === 'active'
+      }),
 
-      subscribeToPlan: (plan) => {
-        const expiresAt = new Date();
-        if (plan.billingCycle === 'monthly') {
-          expiresAt.setMonth(expiresAt.getMonth() + 1);
-        } else if (plan.billingCycle === 'yearly') {
-          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-        } else if (plan.billingCycle === 'semester') {
-          expiresAt.setMonth(expiresAt.getMonth() + 6);
-        }
+      setExpiryDate: (date) => set({ expiryDate: date }),
 
-        set((state) => ({
-          subscription: {
-            ...state.subscription,
-            plan,
-            isActive: true,
-            expiresAt,
-          },
-        }));
-      },
+      cancelSubscription: () => set({
+        subscriptionStatus: 'cancelled',
+        isSubscribed: false
+      }),
 
-      cancelSubscription: () => {
-        set((state) => ({
-          subscription: {
-            ...state.subscription,
-            plan: null,
-            isActive: false,
-            expiresAt: null,
-          },
-        }));
-      },
-
-      canUseFeature: (feature) => {
-        const { subscription } = get();
-        
-        if (subscription.isActive && subscription.plan) {
-          return true; // Pro users can use all features
-        }
-
-        // Free user limitations
-        switch (feature) {
-          case 'videoGeneration':
-          case 'voiceNarration':
-          case 'customAvatars':
-          case 'flowchartExport':
-          case 'premiumChallenges':
-            return false;
-          case 'codeAnalysis':
-            return subscription.dailyUsage.codeAnalysis < FREE_LIMITS.codeAnalysis;
-          case 'problemSolving':
-            return subscription.dailyUsage.problemSolving < FREE_LIMITS.problemSolving;
-          default:
-            return true;
-        }
-      },
-
-      getRemainingUsage: (type) => {
-        const { subscription } = get();
-        
-        if (subscription.isActive && subscription.plan) {
-          return Infinity; // Unlimited for pro users
-        }
-
-        return Math.max(0, FREE_LIMITS[type] - subscription.dailyUsage[type]);
-      },
+      renewSubscription: () => set({
+        subscriptionStatus: 'active',
+        isSubscribed: true
+      }),
     }),
     {
-      name: 'codesage-subscription',
+      name: 'subscription-store',
+      // Fix the type issue by ensuring the storage value is properly handled
       storage: {
         getItem: (name) => {
           const str = localStorage.getItem(name);
           if (!str) return null;
-          
-          const parsed = JSON.parse(str);
-          
-          // Convert expiresAt string back to Date object
-          if (parsed.state?.subscription?.expiresAt) {
-            parsed.state.subscription.expiresAt = new Date(parsed.state.subscription.expiresAt);
-          }
-          
-          return parsed;
+          return JSON.parse(str);
         },
         setItem: (name, value) => {
-          const parsed = JSON.parse(value);
-          
-          // Convert expiresAt Date object to string for storage
-          if (parsed.state?.subscription?.expiresAt instanceof Date) {
-            parsed.state.subscription.expiresAt = parsed.state.subscription.expiresAt.toISOString();
-          }
-          
-          localStorage.setItem(name, JSON.stringify(parsed));
+          localStorage.setItem(name, JSON.stringify(value));
         },
         removeItem: (name) => localStorage.removeItem(name),
       },
     }
   )
 );
+
+// Helper functions for subscription management
+export const subscriptionPlans: SubscriptionPlan[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    features: [
+      'Basic code analysis',
+      '5 AI conversations per day',
+      'Community support'
+    ]
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 9.99,
+    features: [
+      'Advanced code analysis',
+      'Unlimited AI conversations',
+      'Priority support',
+      'Code optimization suggestions',
+      'Custom code templates'
+    ],
+    popular: true
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: 29.99,
+    features: [
+      'Everything in Pro',
+      'Team collaboration',
+      'Advanced analytics',
+      'Custom integrations',
+      'Dedicated support',
+      'SLA guarantee'
+    ]
+  }
+];
+
+// Utility functions
+export const getSubscriptionPlan = (planId: string): SubscriptionPlan | undefined => {
+  return subscriptionPlans.find(plan => plan.id === planId);
+};
+
+export const isSubscriptionActive = (status: string, expiryDate: Date | null): boolean => {
+  if (status !== 'active') return false;
+  if (!expiryDate) return true;
+  return new Date() < expiryDate;
+};
+
+export const getDaysUntilExpiry = (expiryDate: Date | null): number => {
+  if (!expiryDate) return -1;
+  const now = new Date();
+  const diffTime = expiryDate.getTime() - now.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};

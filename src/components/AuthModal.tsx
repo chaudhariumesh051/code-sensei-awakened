@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, User, Eye, EyeOff, Smartphone, ArrowRight, CheckCircle, AlertCircle, Loader, Brain, Sparkles, Shield, Zap, Github, ToggleLeft as Google, Clock } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Smartphone, ArrowRight, CheckCircle, Loader, Brain, Sparkles, Shield, Github, ToggleLeft as Google, Clock } from 'lucide-react';
 import { AuthService } from '../services/auth';
 import { showToast } from './Toast';
 import { supabase } from '../lib/supabase';
@@ -52,20 +52,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       }
     };
   }, [rateLimitCooldown]);
-
-  const resetForm = () => {
-    setFormData({
-      email: '',
-      password: '',
-      confirmPassword: '',
-      fullName: '',
-      phone: '',
-      otp: ''
-    });
-    setErrors({});
-    setShowPassword(false);
-    setRateLimitCooldown(0);
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -220,7 +206,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
   const handleSocialSignIn = async (provider: 'github' | 'google') => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`
@@ -234,10 +220,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       console.error(`${provider} sign in error:`, error);
       showToast.error(error.message || `${provider} sign in failed. Please try again.`);
     }
-  };
-
-  const isEmailAction = (currentMode: AuthMode) => {
-    return ['signup', 'forgot-password', 'magic-link'].includes(currentMode);
   };
 
   const renderForm = () => {
