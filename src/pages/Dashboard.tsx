@@ -2,11 +2,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Code, Video, TrendingUp } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
-
   return (
     <div className="space-y-6">
       <div className="text-center">

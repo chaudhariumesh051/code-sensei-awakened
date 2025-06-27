@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Code, Lightbulb, Copy, Download } from 'lucide-react';
-import { solveProblem } from '../services/gemini';
+import { Brain, Copy } from 'lucide-react';
+import { GeminiService } from '../services/gemini';
 import { showToast } from './Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -32,16 +32,16 @@ export const ProblemSolver: React.FC = () => {
 
     try {
       setLoading(true);
-      const result = await solveProblem(problem, language);
+      const result = await GeminiService.solveProblem(problem, language);
       
       const solutionData: ProblemSolution = {
         problem,
         language,
-        solution: result.optimizedCode || result.code || '',
+        solution: result.solution || '',
         explanation: result.explanation || '',
-        timeComplexity: result.timeComplexity || 'O(n)',
-        spaceComplexity: result.spaceComplexity || 'O(1)',
-        testCases: result.testCases || []
+        timeComplexity: result.complexity?.time || 'O(n)',
+        spaceComplexity: result.complexity?.space || 'O(1)',
+        testCases: result.testCases?.map(tc => `Input: ${tc.input}, Output: ${tc.output}`) || []
       };
       
       setSolution(solutionData);
@@ -59,12 +59,6 @@ export const ProblemSolver: React.FC = () => {
           });
 
         if (error) throw error;
-
-        // Update user stats
-        await supabase.rpc('increment_user_stats', {
-          user_id_param: user.id,
-          stat_type: 'problem'
-        });
       }
 
       showToast.success('Problem solved successfully!');

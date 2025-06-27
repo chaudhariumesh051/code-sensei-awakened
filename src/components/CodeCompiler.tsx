@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Square, AlertTriangle, CheckCircle, Clock, MemoryStick } from 'lucide-react';
+import { Play, AlertTriangle, Clock, MemoryStick } from 'lucide-react';
 import { showToast } from './Toast';
 
 interface CodeCompilerProps {

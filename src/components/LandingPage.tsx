@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -7,16 +8,10 @@ import {
   Play, 
   ArrowRight, 
   Star, 
-  Users, 
-  Globe, 
-  Cpu, 
-  Clock 
+  Users
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 
 export const LandingPage: React.FC = () => {
-  const { user } = useAuth();
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
