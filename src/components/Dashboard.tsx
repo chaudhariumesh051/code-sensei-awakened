@@ -1,45 +1,88 @@
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Code, Users, BarChart3, TrendingUp } from 'lucide-react';
+import { useAuth } from './AuthProvider';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const { user, profile } = useAuth();
+  const [recentAnalyses, setRecentAnalyses] = useState<any[]>([]);
+  const [recentSolutions, setRecentSolutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        if (user) {
-          const { data, error } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-          if (error) throw error;
-          setProfile(data);
-        }
-      } catch (err: any) {
-        setError('Failed to load user data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
+    if (user) {
+      fetchUserData();
+    }
   }, [user]);
 
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch recent code analyses
+      const { data: analyses } = await supabase
+        .from('code_analyses')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Fetch recent problem solutions
+      const { data: solutions } = await supabase
+        .from('problem_solutions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setRecentAnalyses(analyses || []);
+      setRecentSolutions(solutions || []);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stats = [
+    { 
+      label: 'Total Analyses', 
+      value: profile?.total_analyses || 0, 
+      icon: Code, 
+      color: 'text-blue-600',
+      bg: 'bg-blue-100'
+    },
+    { 
+      label: 'Problems Solved', 
+      value: profile?.total_problems_solved || 0, 
+      icon: TrendingUp, 
+      color: 'text-green-600',
+      bg: 'bg-green-100'
+    },
+    { 
+      label: 'Recent Activity', 
+      value: recentAnalyses.length + recentSolutions.length, 
+      icon: BarChart3, 
+      color: 'text-purple-600',
+      bg: 'bg-purple-100'
+    },
+    { 
+      label: 'Account Type', 
+      value: profile?.is_admin ? 'Admin' : 'User', 
+      icon: Users, 
+      color: 'text-orange-600',
+      bg: 'bg-orange-100'
+    },
+  ];
+
   if (loading) {
-    return <div className="flex justify-center items-center h-64 text-lg">Loading your dashboard...</div>;
-  }
-  if (error) {
-    return <div className="flex justify-center items-center h-64 text-red-500">{error}</div>;
-  }
-  if (!profile) {
-    return <div className="flex justify-center items-center h-64 text-gray-500">No profile data found.</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   return (
@@ -48,33 +91,98 @@ export const Dashboard: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
+      {/* Welcome Section */}
       <div className="text-center">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-          Dashboard
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}! 👋
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Welcome, {profile.full_name || profile.email}!
+          Ready to continue your coding journey? Let's analyze some code and solve problems together.
         </p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-dark-800 rounded-2xl border border-gray-200 dark:border-dark-700 p-6 shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Profile Info</h2>
-          <div className="space-y-2">
-            <div><span className="font-medium">Email:</span> {profile.email}</div>
-            <div><span className="font-medium">Full Name:</span> {profile.full_name}</div>
-            <div><span className="font-medium">Username:</span> {profile.username || '-'}</div>
-            <div><span className="font-medium">Role:</span> {profile.role || 'user'}</div>
-            <div><span className="font-medium">Joined:</span> {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : '-'}</div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-dark-800 rounded-2xl border border-gray-200 dark:border-dark-700 p-6 shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Usage Stats</h2>
-          <div className="space-y-2">
-            <div><span className="font-medium">Total Analyses:</span> {profile.total_analyses ?? 0}</div>
-            <div><span className="font-medium">Problems Solved:</span> {profile.total_problems_solved ?? 0}</div>
-            <div><span className="font-medium">Videos Generated:</span> {profile.total_videos_generated ?? 0}</div>
-            <div><span className="font-medium">Subscription Status:</span> {profile.subscription_status || 'inactive'}</div>
-          </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={index}
+              whileHover={{ scale: 1.05 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                </div>
+                <div className={`w-12 h-12 ${stat.bg} dark:bg-gray-700 rounded-xl flex items-center justify-center`}>
+                  <Icon className={`w-6 h-6 ${stat.color} dark:text-gray-300`} />
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Code Analyses */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        >
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Code Analyses</h3>
+          {recentAnalyses.length > 0 ? (
+            <div className="space-y-3">
+              {recentAnalyses.map((analysis, index) => (
+                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{analysis.title}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{analysis.language}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                      {new Date(analysis.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400">No code analyses yet. Start analyzing code to see your history here!</p>
+          )}
+        </motion.div>
+
+        {/* Recent Problem Solutions */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        >
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Problem Solutions</h3>
+          {recentSolutions.length > 0 ? (
+            <div className="space-y-3">
+              {recentSolutions.map((solution, index) => (
+                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{solution.problem_title}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{solution.language}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                      {new Date(solution.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400">No problems solved yet. Start solving problems to see your progress here!</p>
+          )}
         </div>
       </div>
     </motion.div>
