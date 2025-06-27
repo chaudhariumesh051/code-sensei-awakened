@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.2.1",
-    "@supabase/supabase-js": "^2.38.4",
+    "@supabase/supabase-js": "^2.50.2",
     "axios": "^1.6.2",
     "framer-motion": "^10.16.16",
     "lovable-tagger": "^1.1.8",
