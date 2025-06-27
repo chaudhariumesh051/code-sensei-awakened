@@ -183,7 +183,7 @@ export const Dashboard: React.FC = () => {
           ) : (
             <p className="text-gray-500 dark:text-gray-400">No problems solved yet. Start solving problems to see your progress here!</p>
           )}
-        </div>
+        </motion.div>
       </div>
     </motion.div>
   );
