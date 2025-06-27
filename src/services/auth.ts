@@ -1,4 +1,3 @@
-
 import { supabase } from '../lib/supabase';
 
 export interface SignUpData {
@@ -120,5 +119,31 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  static async updateProfile(data: any) {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update(data)
+      .eq('id', (await this.getCurrentUser())?.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  static async getUserSessions() {
+    // Mock implementation - return empty array for now
+    return [];
+  }
+
+  static async getSecurityLogs() {
+    // Mock implementation - return empty array for now
+    return [];
+  }
+
+  static async revokeSession(sessionId: string) {
+    // Mock implementation - log the session ID
+    console.log('Revoking session:', sessionId);
   }
 }

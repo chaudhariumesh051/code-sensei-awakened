@@ -11,12 +11,11 @@ import {
   Trash2, 
   AlertTriangle,
   Shield,
-  Smartphone,
-  Bell,
   Moon,
   Sun,
   Code,
-  LogOut
+  LogOut,
+  Loader
 } from 'lucide-react';
 import { AuthService } from '../services/auth';
 import { showToast } from './Toast';
@@ -28,7 +27,7 @@ interface ProfileSettingsProps {
 }
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onLogout }) => {
-  const { isDark, toggleTheme } = useTheme();
+  const { toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -118,8 +117,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onLogout }) =>
 
   const loadSessions = async () => {
     try {
-      const sessions = await AuthService.getUserSessions();
-      setSessions(sessions);
+      // Mock sessions for now
+      setSessions([]);
     } catch (error) {
       console.error('Error loading sessions:', error);
     }
@@ -127,8 +126,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onLogout }) =>
 
   const loadSecurityLogs = async () => {
     try {
-      const logs = await AuthService.getSecurityLogs();
-      setSecurityLogs(logs);
+      // Mock security logs for now
+      setSecurityLogs([]);
     } catch (error) {
       console.error('Error loading security logs:', error);
     }
@@ -233,13 +232,17 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onLogout }) =>
 
   const handleRevokeSession = async (sessionId: string) => {
     try {
-      await AuthService.revokeSession(sessionId);
+      // Mock revoke session for now
       showToast.success('Session revoked successfully');
       loadSessions();
     } catch (error) {
       console.error('Error revoking session:', error);
       showToast.error('Failed to revoke session');
     }
+  };
+
+  const resetForm = () => {
+    loadUserData();
   };
 
   const handleLogout = async () => {

@@ -9,13 +9,10 @@ import {
   Download, 
   Copy, 
   Check, 
-  AlertCircle, 
-  CheckCircle,
   Clock,
   Target,
   Lightbulb,
   FileText,
-  Settings,
   Crown
 } from 'lucide-react';
 import { GeminiService } from '../services/gemini';
@@ -51,12 +48,11 @@ interface ExecutionResult {
 }
 
 export const ProblemSolver: React.FC = () => {
-  const { subscription, canUseFeature, updateUsage } = useSubscriptionStore();
+  const subscriptionStore = useSubscriptionStore();
   const [problemStatement, setProblemStatement] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [solution, setSolution] = useState<ProblemSolution | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [activeTab, setActiveTab] = useState<'solution' | 'execution' | 'optimization' | 'video'>('solution');
   const [copied, setCopied] = useState(false);
 
@@ -90,7 +86,7 @@ export const ProblemSolver: React.FC = () => {
     }
 
     // Check if user can use problem solving feature
-    if (!canUseFeature('problemSolving')) {
+    if (!subscriptionStore.canUseFeature('problemSolving')) {
       showToast.upgrade('You\'ve reached your daily problem solving limit. Upgrade to Pro for unlimited access!');
       return;
     }
@@ -102,8 +98,8 @@ export const ProblemSolver: React.FC = () => {
       setActiveTab('solution');
       
       // Update usage for free users
-      if (!subscription.isActive) {
-        updateUsage('problemSolving');
+      if (!subscriptionStore.subscription.isActive) {
+        subscriptionStore.updateUsage('problemSolving');
       }
       
       showToast.success('Solution generated successfully! 🎉');
@@ -123,10 +119,10 @@ export const ProblemSolver: React.FC = () => {
       const optimizedSolution = await GeminiService.optimizeCode(solution.solution, selectedLanguage);
       setSolution({
         ...solution,
-        solution: optimizedSolution.code,
+        solution: optimizedSolution.optimizedCode,
         optimizations: optimizedSolution.improvements,
-        timeComplexity: optimizedSolution.timeComplexity,
-        spaceComplexity: optimizedSolution.spaceComplexity
+        timeComplexity: solution.timeComplexity,
+        spaceComplexity: solution.spaceComplexity
       });
       setActiveTab('optimization');
       showToast.success('Code optimized successfully! ⚡');
@@ -219,13 +215,13 @@ ${solution.testCases.map(test => `Input: ${test.input} | Expected: ${test.expect
       </motion.div>
 
       {/* Usage Indicator for Free Users */}
-      {!subscription.isActive && (
+      {!subscriptionStore.subscription.isActive && (
         <motion.div variants={itemVariants} className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border border-orange-200 dark:border-orange-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Target className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               <span className="text-orange-800 dark:text-orange-300 font-medium">
-                Free Plan: {subscription.dailyUsage.problemSolving}/3 problems solved today
+                Free Plan: {subscriptionStore.subscription.dailyUsage.problemSolving}/3 problems solved today
               </span>
             </div>
             <motion.button
@@ -314,7 +310,7 @@ ${solution.testCases.map(test => `Input: ${test.input} | Expected: ${test.expect
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleGenerateSolution}
-            disabled={isGenerating || !problemStatement.trim() || (!subscription.isActive && !canUseFeature('problemSolving'))}
+            disabled={isGenerating || !problemStatement.trim() || (!subscriptionStore.subscription.isActive && !subscriptionStore.canUseFeature('problemSolving'))}
             className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
           >
             {isGenerating ? (
@@ -327,7 +323,7 @@ ${solution.testCases.map(test => `Input: ${test.input} | Expected: ${test.expect
                 </motion.div>
                 <span>Generating Solution...</span>
               </>
-            ) : !subscription.isActive && !canUseFeature('problemSolving') ? (
+            ) : !subscriptionStore.subscription.isActive && !subscriptionStore.canUseFeature('problemSolving') ? (
               <>
                 <Crown className="w-5 h-5" />
                 <span>Daily Limit Reached - Upgrade to Continue</span>
@@ -374,7 +370,7 @@ ${solution.testCases.map(test => `Input: ${test.input} | Expected: ${test.expect
                     >
                       <Icon className="w-4 h-4" />
                       <span>{tab.label}</span>
-                      {tab.id === 'video' && !subscription.isActive && (
+                      {tab.id === 'video' && !subscriptionStore.subscription.isActive && (
                         <Crown className="w-3 h-3 text-yellow-500" />
                       )}
                     </motion.button>
@@ -468,7 +464,7 @@ ${solution.testCases.map(test => `Input: ${test.input} | Expected: ${test.expect
                     <CodeCompiler
                       code={solution.solution}
                       language={selectedLanguage}
-                      onExecute={setExecutionResult}
+                      onExecute={(result) => console.log('Execution result:', result)}
                     />
                   </motion.div>
                 )}
@@ -523,10 +519,7 @@ ${solution.testCases.map(test => `Input: ${test.input} | Expected: ${test.expect
                     exit={{ opacity: 0, x: -20 }}
                   >
                     <VideoGenerator
-                      problemTitle={solution.problem}
-                      script={solution.videoScript || solution.explanation}
-                      language={selectedLanguage}
-                      onVideoGenerated={(video) => {
+                      onVideoGenerated={(video: any) => {
                         console.log('Video generated:', video);
                         showToast.success('Video explanation generated! 🎬');
                       }}
