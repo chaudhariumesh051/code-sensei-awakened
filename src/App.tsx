@@ -1,38 +1,42 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { ToastProvider } from './components/Toast';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { AuthPage } from './pages/AuthPage';
-import { DashboardLayout } from './components/DashboardLayout';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import Navbar from "./components/Navbar";
+import Index from "./pages/Index";
+import Chat from "./pages/Chat";
+import Dashboard from "./pages/Dashboard";
+import Lessons from "./pages/Lessons";
+import Challenges from "./pages/Challenges";
+import NotFound from "./pages/NotFound";
 
-function App() {
-  return (
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <AuthProvider>
-        <Router>
-          <div className="min-h-screen">
-            <ToastProvider />
-            
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 dark:from-black dark:via-purple-950 dark:to-black transition-colors duration-300">
+            <Navbar />
             <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route 
-                path="/dashboard/*" 
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route path="/" element={<Navigate to="/auth" replace />} />
-              <Route path="*" element={<Navigate to="/auth" replace />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/lessons" element={<Lessons />} />
+              <Route path="/challenges" element={<Challenges />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
-        </Router>
-      </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
-  );
-}
+  </QueryClientProvider>
+);
 
 export default App;
