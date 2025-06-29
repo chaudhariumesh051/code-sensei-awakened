@@ -16,13 +16,13 @@ export const AuthPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated && !authLoading) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +44,8 @@ export const AuthPage: React.FC = () => {
           options: { 
             data: { 
               full_name: fullName 
-            }
+            },
+            emailRedirectTo: `${window.location.origin}/dashboard`
           }
         });
         if (error) throw error;
@@ -55,6 +56,7 @@ export const AuthPage: React.FC = () => {
         });
         if (error) throw error;
         showToast.success('Password reset email sent! Please check your inbox.');
+        setMode('signin');
       }
     } catch (err: any) {
       showToast.error(err.message || 'Authentication failed. Please try again.');
@@ -62,6 +64,14 @@ export const AuthPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white px-4">
@@ -76,7 +86,7 @@ export const AuthPage: React.FC = () => {
             <Code className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            AI Coding Tutor
+            CodeSage AI Tutor
           </h1>
           <p className="text-gray-300">
             {mode === 'signin' && 'Welcome back! Sign in to continue learning.'}
@@ -191,6 +201,7 @@ export const AuthPage: React.FC = () => {
             {mode === 'signin' && (
               <>
                 <button
+                  type="button"
                   className="text-blue-400 hover:text-blue-300 font-medium text-sm block w-full"
                   onClick={() => setMode('forgot')}
                 >
@@ -199,6 +210,7 @@ export const AuthPage: React.FC = () => {
                 <div className="text-gray-400">
                   Don't have an account?{' '}
                   <button
+                    type="button"
                     className="text-blue-400 hover:text-blue-300 font-medium"
                     onClick={() => setMode('signup')}
                   >
@@ -211,6 +223,7 @@ export const AuthPage: React.FC = () => {
               <div className="text-gray-400">
                 Already have an account?{' '}
                 <button
+                  type="button"
                   className="text-blue-400 hover:text-blue-300 font-medium"
                   onClick={() => setMode('signin')}
                 >
@@ -222,6 +235,7 @@ export const AuthPage: React.FC = () => {
               <div className="text-gray-400">
                 Remember your password?{' '}
                 <button
+                  type="button"
                   className="text-blue-400 hover:text-blue-300 font-medium"
                   onClick={() => setMode('signin')}
                 >

@@ -1,44 +1,34 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './Navbar';
-import { Sidebar } from './Sidebar';
 import { Dashboard } from './Dashboard';
-import { CodeAnalyzer } from './CodeAnalyzer';
-import { ProblemSolver } from './ProblemSolver';
-import { SettingsPanel } from './SettingsPanel';
+import { ProfileSettings } from './ProfileSettings';
 import { AdminPanel } from './AdminPanel';
-import { useAuth } from './AuthProvider';
+import { ProtectedRoute } from './ProtectedRoute';
 
 export const DashboardLayout: React.FC = () => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { profile } = useAuth();
-
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
-      />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navbar />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/analyzer" element={<CodeAnalyzer />} />
-              <Route path="/solver" element={<ProblemSolver />} />
-              <Route path="/settings" element={<SettingsPanel />} />
-              {profile?.is_admin && (
-                <Route path="/admin" element={<AdminPanel />} />
-              )}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </div>
-        </main>
-      </div>
+      <main className="py-6 px-4">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/analyzer" element={<div className="text-center text-gray-600">Code Analyzer - Coming Soon</div>} />
+          <Route path="/solver" element={<div className="text-center text-gray-600">Problem Solver - Coming Soon</div>} />
+          <Route path="/settings" element={<ProfileSettings />} />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminPanel />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </main>
     </div>
   );
 };

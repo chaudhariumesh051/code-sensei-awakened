@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Trash2, Shield, AlertCircle } from 'lucide-react';
+import { Users, Trash2, Shield, AlertCircle, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './Toast';
 
@@ -9,20 +9,29 @@ interface User {
   id: string;
   email: string;
   full_name: string;
-  created_at: string;
+  avatar_url: string;
   is_admin: boolean;
   total_analyses: number;
   total_problems_solved: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export const AdminPanel: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'admin' | 'user'>('all');
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    filterUsers();
+  }, [users, searchTerm, filterType]);
 
   const fetchUsers = async () => {
     try {
@@ -42,10 +51,43 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const filterUsers = () => {
+    let filtered = users;
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(user => 
+        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by type
+    if (filterType === 'admin') {
+      filtered = filtered.filter(user => user.is_admin);
+    } else if (filterType === 'user') {
+      filtered = filtered.filter(user => !user.is_admin);
+    }
+
+    setFilteredUsers(filtered);
+  };
+
   const deleteUser = async (userId: string) => {
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      if (error) throw error;
+      // First delete from user_profiles (this will cascade to related tables)
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (profileError) throw profileError;
+
+      // Then delete from auth.users using admin API
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      if (authError) {
+        console.warn('Could not delete auth user:', authError);
+        // Continue anyway as profile is deleted
+      }
 
       setUsers(users.filter(user => user.id !== userId));
       showToast.success('User deleted successfully');
@@ -68,9 +110,9 @@ export const AdminPanel: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-6 max-w-7xl mx-auto"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Admin Panel
@@ -124,11 +166,39 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-gray-400" />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as 'all' | 'admin' | 'user')}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="all">All Users</option>
+              <option value="admin">Admins Only</option>
+              <option value="user">Users Only</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Users Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            All Users
+            Users ({filteredUsers.length})
           </h2>
         </div>
         
@@ -154,15 +224,24 @@ export const AdminPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {user.full_name}
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mr-3">
+                        {user.avatar_url ? (
+                          <span className="text-lg">{user.avatar_url}</span>
+                        ) : (
+                          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        )}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {user.email}
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {user.full_name || 'Unnamed User'}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {user.email}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -188,7 +267,8 @@ export const AdminPanel: React.FC = () => {
                     {!user.is_admin && (
                       <button
                         onClick={() => setDeleteConfirm(user.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        title="Delete User"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -203,11 +283,11 @@ export const AdminPanel: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4"
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full"
           >
             <div className="flex items-center mb-4">
               <AlertCircle className="w-6 h-6 text-red-600 mr-3" />
@@ -216,7 +296,7 @@ export const AdminPanel: React.FC = () => {
               </h3>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to delete this user? This action cannot be undone.
+              Are you sure you want to delete this user? This action cannot be undone and will permanently remove all their data.
             </p>
             <div className="flex space-x-3">
               <button

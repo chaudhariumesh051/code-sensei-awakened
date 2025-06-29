@@ -6,44 +6,35 @@ import {
   Lock, 
   Save,
   LogOut,
-  Trash2,
   Eye,
   EyeOff
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { AuthService } from '../services/auth';
 import { showToast } from './Toast';
 import { supabase } from '../lib/supabase';
 
-interface UserSession {
-  id: string;
-  created_at: string;
-  ip: string;
-  user_agent: string;
-}
-
 const AVATAR_OPTIONS = [
   '👤', '👨‍💻', '👩‍💻', '🧑‍💻', '👨‍🎓', '👩‍🎓', '🧑‍🎓',
-  '👨‍🔬', '👩‍🔬', '🧑‍🔬', '👨‍🏫', '👩‍🏫', '🧑‍🏫'
+  '👨‍🔬', '👩‍🔬', '🧑‍🔬', '👨‍🏫', '👩‍🏫', '🧑‍🏫',
+  '🧑‍💼', '👨‍💼', '👩‍💼', '🤖', '⚡', '🚀', '💡', '🎯'
 ];
 
 export const ProfileSettings: React.FC = () => {
-  const { user, profile, refreshUser } = useAuth();
+  const { user, profile, refreshUser, signOut } = useAuth();
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
-    avatar_url: profile?.avatar_url || '👤'
+    avatar_url: profile?.avatar_url || '👤',
+    bio: profile?.bio || '',
+    location: profile?.location || ''
   });
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
   const [showPasswords, setShowPasswords] = useState({
-    current: false,
     new: false,
     confirm: false
   });
-  const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
@@ -51,20 +42,12 @@ export const ProfileSettings: React.FC = () => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || '',
-        avatar_url: profile.avatar_url || '👤'
+        avatar_url: profile.avatar_url || '👤',
+        bio: profile.bio || '',
+        location: profile.location || ''
       });
     }
-    fetchSessions();
   }, [profile]);
-
-  const fetchSessions = async () => {
-    try {
-      const sessionData = await AuthService.getUserSessions();
-      setSessions(sessionData);
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-    }
-  };
 
   const handleProfileUpdate = async () => {
     if (!formData.full_name.trim()) {
@@ -80,6 +63,8 @@ export const ProfileSettings: React.FC = () => {
         .update({
           full_name: formData.full_name,
           avatar_url: formData.avatar_url,
+          bio: formData.bio,
+          location: formData.location,
           updated_at: new Date().toISOString()
         })
         .eq('id', user?.id);
@@ -114,10 +99,13 @@ export const ProfileSettings: React.FC = () => {
 
     try {
       setPasswordLoading(true);
-      await AuthService.updatePassword(passwordData.newPassword);
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+      
+      if (error) throw error;
       
       setPasswordData({
-        currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
@@ -133,7 +121,7 @@ export const ProfileSettings: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
-      await AuthService.signOut();
+      await signOut();
       showToast.success('Signed out successfully');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -168,15 +156,15 @@ export const ProfileSettings: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Avatar
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 dark:border-gray-600 rounded-lg">
               {AVATAR_OPTIONS.map((avatar) => (
                 <button
                   key={avatar}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, avatar_url: avatar }))}
-                  className={`w-12 h-12 text-2xl rounded-lg border-2 transition-all ${
+                  className={`w-12 h-12 text-2xl rounded-lg border-2 transition-all hover:scale-110 ${
                     formData.avatar_url === avatar
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 ring-opacity-50'
                       : 'border-gray-300 dark:border-gray-600 hover:border-blue-300'
                   }`}
                 >
@@ -184,6 +172,21 @@ export const ProfileSettings: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={user?.email || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Email cannot be changed
+            </p>
           </div>
 
           <div>
@@ -201,23 +204,34 @@ export const ProfileSettings: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Email
+              Bio
+            </label>
+            <textarea
+              value={formData.bio}
+              onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="Tell us about yourself"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Location
             </label>
             <input
-              type="email"
-              value={user?.email || ''}
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="Your location"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Email cannot be changed
-            </p>
           </div>
 
           <button
             onClick={handleProfileUpdate}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save className="w-4 h-4" />}
             <span>{loading ? 'Saving...' : 'Save Changes'}</span>
@@ -240,28 +254,6 @@ export const ProfileSettings: React.FC = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Current Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.current ? 'text' : 'password'}
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter current password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
-              >
-                {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               New Password
             </label>
             <div className="relative">
@@ -275,7 +267,7 @@ export const ProfileSettings: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -297,7 +289,7 @@ export const ProfileSettings: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -307,7 +299,7 @@ export const ProfileSettings: React.FC = () => {
           <button
             onClick={handlePasswordChange}
             disabled={passwordLoading}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {passwordLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Lock className="w-4 h-4" />}
             <span>{passwordLoading ? 'Updating...' : 'Update Password'}</span>
@@ -326,23 +318,13 @@ export const ProfileSettings: React.FC = () => {
           Account Actions
         </h2>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center justify-center space-x-2"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
-          </button>
-
-          <button
-            onClick={() => showToast.error('Account deletion is not available in demo mode')}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center space-x-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete Account</span>
-          </button>
-        </div>
+        <button
+          onClick={handleSignOut}
+          className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center space-x-2"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </button>
       </motion.div>
     </div>
   );

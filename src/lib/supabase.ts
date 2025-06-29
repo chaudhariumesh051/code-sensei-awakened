@@ -18,11 +18,8 @@ export interface Profile {
   email: string
   full_name: string
   avatar_url?: string
-  username?: string
   bio?: string
-  website?: string
   location?: string
-  timezone: string
   is_admin: boolean
   total_analyses: number
   total_problems_solved: number
@@ -33,11 +30,40 @@ export interface Profile {
 export interface CodeAnalysis {
   id: string
   user_id: string
+  submission_id?: string
   title: string
+  summary?: string
+  explanation?: string
+  score?: number
+  time_complexity?: string
+  space_complexity?: string
+  bugs: any[]
+  optimizations: any[]
+  created_at: string
+}
+
+export interface ProblemSolution {
+  id: string
+  user_id: string
+  problem_title: string
+  problem_statement: string
+  language: string
+  solution_code: string
+  explanation?: string
+  time_complexity?: string
+  space_complexity?: string
+  created_at: string
+}
+
+export interface CodeSubmission {
+  id: string
+  user_id: string
+  title: string
+  description?: string
   code_content: string
   language: string
-  analysis_result: any
   created_at: string
+  updated_at: string
 }
 
 export interface AuthUser {
